@@ -1,3 +1,60 @@
+import os
+import numpy as np
+from tensorflow.keras import backend as K
+from residualbind import ResidualBind
+import helper
+
+#---------------------------------------------------------------------------------------
+
+normalization = 'clip_norm'   # 'log_norm' or 'clip_norm'
+ss_type = 'seq'                  # 'seq', 'pu', or 'struct'
+data_path = '../data/RNAcompete_2013/rnacompete2013.h5'
+results_path = helper.make_directory('../results', 'rnacompete_2013')
+save_path = helper.make_directory(results_path, normalization+'_'+ss_type)
+
+#---------------------------------------------------------------------------------------
+
+# loop over different RNA binding proteins
+pearsonr_scores = []
+experiments = helper.get_experiment_names(data_path)
+for rbp_index, experiment in enumerate(experiments[189:]):
+    experiment = experiment.decode('UTF-8')
+    print('Analyzing: '+ experiment)
+
+    # load rbp dataset
+    train, valid, test = helper.load_rnacompete_data(data_path, 
+                                                     ss_type=ss_type, 
+                                                     normalization=normalization, 
+                                                     rbp_index=rbp_index)
+
+    # load residualbind model
+    input_shape = list(train['inputs'].shape)[1:]
+    weights_path = os.path.join(save_path, experiment + '_weights.hdf5')    
+    model = ResidualBind(input_shape, weights_path)
+
+    # fit model
+    model.fit(train, valid, num_epochs=300, batch_size=100, patience=25, 
+              lr=0.001, lr_decay=0.3, decay_patience=7)
+    
+    # evaluate model
+    corr = model.test_model(test, batch_size=100, weights='best')
+    print("  Test: "+str(np.mean(corr)))
+
+    pearsonr_scores.append(corr)
+pearsonr_scores = np.array(pearsonr_scores)
+
+print('FINAL RESULTS: %.4f+/-%.4f'%(np.mean(pearsonr_scores), np.std(pearsonr_scores)))
+
+# save results to table
+file_path = os.path.join(results_path, normalization+'_'+ss_type+'_performance.tsv')
+f.write('%s\t%s\n'%('Experiment', 'Pearson score'))
+with open(file_path, 'w') as f:
+    for experiment, score in zip(experiments, pearsonr_scores):
+        f.write('%s\t%.4f\n'%(experiment, score))
+
+
+"""
+
 import os, h5py
 from six.moves import cPickle
 import numpy as np
@@ -5,18 +62,6 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 import helper
 
-"""
-residualbind: 0.6669+/-0.1767
-dilatedresidualbind: 0.6725+/-0.1721
-dilated2residualbind: 0.6707+/-0.1693
-dilated_exp: 0.6830+/-0.1703
-dilated_relu: 0.6795+/-0.1715
-dilated2_exp: 0.6832+/-0.1696
-dilated2_relu: 0.6807+/-0.1706
-dilated3residualbind_exp: 0.6882+/-0.1712
-dilated3residualbind_exp: 0.6882+/-0.1712
-dilated3_exp2: 0.6875+/-0.1711
-"""
 
 #---------------------------------------------------------------------------------------
 
@@ -126,3 +171,4 @@ print('FINAL RESULTS: %.4f+/-%.4f'%(np.mean(all_results), np.std(all_results)))
 with open(os.path.join(results_path, model_name+'.pickle'), 'wb') as f:
     cPickle.dump(all_results, f)
 
+"""
