@@ -1,7 +1,7 @@
 import os, h5py
 import numpy as np
 from scipy import stats
-
+import matplotlib.pyplot as plt
 
 
 def make_directory(path, foldername, verbose=1):
@@ -26,15 +26,15 @@ def load_rnacompete_data(file_path, ss_type='seq', normalization='log_norm', rbp
 
 		if ss_type == 'pu':
 			structure = train['inputs'][:,:,4:9]
-			paired = np.expand_dims(structure[:,:,0], axis=3)
-			unpaired = np.expand_dims(np.sum(structure[:,:,1:], axis=3), axis=3)
-			seq = np.concatenate([seq, paired, unpaired], axis=3)
+			paired = np.expand_dims(structure[:,:,0], axis=2)
+			unpaired = np.expand_dims(np.sum(structure[:,:,1:], axis=2), axis=2)
+			seq = np.concatenate([seq, paired, unpaired], axis=2)
 
 		elif ss_type == 'struct':
 			structure = train['inputs'][:,:,4:9]
-			paired = np.expand_dims(structure[:,:,0], axis=3)
+			paired = np.expand_dims(structure[:,:,0], axis=2)
 			HIME = structure[:,:,1:]
-			seq = np.concatenate([seq, paired, HIME], axis=3)
+			seq = np.concatenate([seq, paired, HIME], axis=2)
 
 		train['inputs']  = seq
 		return train
@@ -137,5 +137,29 @@ def dataset_keys_hdf5(file_path):
 
 def get_experiment_names(file_path):
 	dataset = h5py.File(file_path, 'r')
-	return np.array(dataset['experiment'])
+	return [i.decode('UTF-8') for i in np.array(dataset['experiment'])]
 
+def find_experiment_index(data_path, experiment):
+    experiments = get_experiment_names(data_path)
+    return experiments.index(experiment)
+
+    
+def add_significance(all_scores, start, end, height, percentile=97.5, significance=0.5, fontsize=14):
+
+    def significance_bar(start,end,height,displaystring,linewidth = 1.2,
+                         markersize = 8,boxpad=0.3,fontsize = 15,color = 'k'):
+        from matplotlib.markers import TICKDOWN
+        # draw a line with downticks at the ends
+        plt.plot([start,end],[height]*2,'-',color = color,lw=linewidth,marker = TICKDOWN,markeredgewidth=linewidth,markersize = markersize)
+        # draw the text with a bounding box covering up the line
+        plt.text(0.5*(start+end),height,displaystring,ha = 'center',va='center',bbox=dict(facecolor='1.', edgecolor='none',boxstyle='Square,pad='+str(boxpad)),size = fontsize)
+
+    #results = stats.wilcoxon(all_scores[start-1], all_scores[end-1])
+    results = stats.ttest_ind(all_scores[start-1], all_scores[end-1], equal_var=False) # Welch’s t-test because unequal variance
+    if results.pvalue > significance:
+        displaystring = 'NS'
+    else:
+        displaystring = '*'
+    significance_bar(start,end,height,displaystring,linewidth=1.2,markersize=8,
+                     boxpad=0.3,fontsize=fontsize,color='k')
+    return results.pvalue
