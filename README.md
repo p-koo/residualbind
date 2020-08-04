@@ -1,6 +1,6 @@
 # ResidualBind package overview
 
-The ResidualBind is a python package that uses TensorFlow for DNN training and model interpretability with global importance analysis.
+The ResidualBind is a python package that uses TensorFlow for DNN training and model interpretability with global importance analysis. This repository contains scripts to reproduce results from "Global Importance Analysis: A Method to Quantify Importance of Genomic Features in Deep Neural Networks" by Koo et al.
 
 
 #### Dependencies
