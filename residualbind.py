@@ -113,7 +113,7 @@ class ResidualBind():
         self.model.save_weights(self.weights_path)
         print('  Saving model to: ' + self.weights_path)
 
-    def _compile_model(self):
+    def _compile_model(self, lr):
         optimizer = keras.optimizers.Adam(learning_rate=lr)
             
         # set up optimizer and metrics
@@ -128,7 +128,7 @@ class ResidualBind():
     def fit(self, train, valid, num_epochs=300, batch_size=100, 
             patience=25, lr=0.001, lr_decay=0.3, decay_patience=7):
 
-        self._compile_model()
+        self._compile_model(lr)
 
         if self.classification:
             self._fit_classification(train, valid, num_epochs, batch_size, 
