@@ -10,7 +10,7 @@ import helper
 normalization = 'log_norm'   # 'log_norm' or 'clip_norm'
 ss_type = 'seq'                  # 'seq', 'pu', or 'struct'
 data_path = '../data/RNAcompete_2009/rnacompete2009.h5'
-results_path = helper.make_directory('../results_final2', 'rnacompete_2009')
+results_path = helper.make_directory('../results', 'rnacompete_2009')
 save_path = helper.make_directory(results_path, normalization+'_'+ss_type)
 
 #---------------------------------------------------------------------------------------
