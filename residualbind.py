@@ -11,8 +11,8 @@ class ResidualBind():
         self.input_shape = input_shape
         self.num_class = num_class
         self.weights_path = weights_path
-        self.model = self.build(input_shape)
         self.classification = classification
+        self.model = self.build(input_shape)
 
 
     def build(self, input_shape):
@@ -98,7 +98,7 @@ class ResidualBind():
         nn = keras.layers.Dropout(0.5)(nn)
 
         # output layer
-        outputs = keras.layers.Dense(num_class, activation='linear', use_bias=True)(nn)
+        outputs = keras.layers.Dense(self.num_class, activation='linear', use_bias=True)(nn)
         
         if self.classification:
             outputs = keras.layers.Activation('sigmoid')(outputs)
