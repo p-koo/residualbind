@@ -37,7 +37,7 @@ for rbp_index, experiment in enumerate(experiments):
               lr=0.001, lr_decay=0.3, decay_patience=7)
         
     # evaluate model
-    metrics = resnet.test_model(test, batch_size=100, weights='best')
+    metrics = resnet.test_model(test, batch_size=100, load_weights='best')
     print("  Test: "+str(np.mean(metrics)))
 
     pearsonr_scores.append(metrics)
