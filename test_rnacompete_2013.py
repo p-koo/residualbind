@@ -28,8 +28,9 @@ for rbp_index, experiment in enumerate(experiments):
 
     # load residualbind model
     input_shape = list(train['inputs'].shape)[1:]
+    num_class = 1
     weights_path = os.path.join(save_path, experiment + '_weights.hdf5')    
-    model = ResidualBind(input_shape, weights_path)
+    model = ResidualBind(input_shape, num_class, weights_path)
     model.load_weights()
 
     # evaluate model

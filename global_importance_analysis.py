@@ -40,8 +40,9 @@ for rbp_index, experiment in enumerate(experiments):
 
     # load residualbind model
     input_shape = list(train['inputs'].shape)[1:]
+    num_class = 1
     weights_path = os.path.join(save_path, experiment + '_weights.hdf5')    
-    resnet = ResidualBind(input_shape, weights_path)
+    resnet = ResidualBind(input_shape, num_class, weights_path)
     resnet.load_weights()
 
     # instantiate global importance
@@ -69,7 +70,7 @@ for rbp_index, experiment in enumerate(experiments):
     motif = kmers[0]
        
     # generate motif from weighted k-mer alignment
-    kmer_motif = explain.kmer_alignment_motif(kmers, scores, alphabet)
+    kmer_motif = explain.kmer_alignment_motif(kmers, mean_scores, alphabet)
 
     # convert to logo
     I = np.log2(4) + np.sum(kmer_motif * np.log2(kmer_motif+1e-10), axis=1, keepdims=True)
