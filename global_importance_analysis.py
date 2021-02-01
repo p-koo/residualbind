@@ -10,14 +10,16 @@ import helper, explain
 
 #---------------------------------------------------------------------
 
+null_model = 'profile'  # 'profile', 'random' , 'dinuc', 'quartile1', 'quartile2', 'quartile3', 'quartile4']  
+
 normalization = 'log_norm'   # 'log_norm' or 'clip_norm'
 ss_type = 'seq'                  # 'seq', 'pu', or 'struct'
 data_path = '../data/RNAcompete_2013/rnacompete2013.h5'
 results_path = os.path.join('../results', 'rnacompete_2013')
 save_path = os.path.join(results_path, normalization+'_'+ss_type)
-plot_path = helper.make_directory(save_path, 'plots')
-motif_path = helper.make_directory(save_path, 'motifs')
-kmer_path = helper.make_directory(save_path, 'kmer_motifs')
+plot_path = helper.make_directory(save_path, 'plots_'+null_model)
+motif_path = helper.make_directory(save_path, 'motifs_'+null_model)
+kmer_path = helper.make_directory(save_path, 'kmer_motifs_'+null_model)
 alphabet = 'ACGU'
 
 #---------------------------------------------------------------------------------------
@@ -42,16 +44,14 @@ for rbp_index, experiment in enumerate(experiments):
     input_shape = list(train['inputs'].shape)[1:]
     num_class = 1
     weights_path = os.path.join(save_path, experiment + '_weights.hdf5')    
-    resnet = ResidualBind(input_shape, num_class, weights_path)
-    resnet.load_weights()
+    model = ResidualBind(input_shape, num_class, weights_path)
+    model.load_weights()
 
     # instantiate global importance
-    gi = GlobalImportance(resnet, alphabet)
+    gi = GlobalImportance(model, alphabet)
 
     # set null sequence model
-    null_seq_model = np.mean(np.squeeze(train['inputs']), axis=0)
-    null_seq_model /= np.sum(null_seq_model, axis=1, keepdims=True)
-    gi.set_null_model(null_seq_model, num_sim=1000)
+    gi.set_null_model(null_model, base_sequence=test['inputs'], num_sample=1000, binding_scores=test['targets'])  
 
     #-----------------------------------------------------------------------------
     # k-mer analysis to find motif

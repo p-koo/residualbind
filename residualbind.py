@@ -237,65 +237,49 @@ class ResidualBind():
 
 
 
-
-
 #-------------------------------------------------------------------------------------
 
 
 class GlobalImportance():
-    def __init__(self, residualbind, alphabet='ACGU'):
-        self.residualbind = residualbind
+        """Class that performs GIA experiments."""
+    def __init__(self, model, alphabet='ACGU'):
+        self.model = model
         self.alphabet = alphabet
         self.x_null = None
         self.x_null_index = None
 
+
+    def set_null_model(self, null_model, base_sequence, num_sample=1000, binding_scores=None):
+        """use model-based approach to set the null sequences"""
+        self.x_null = generate_null_sequence_set(null_model, base_sequence, num_sample, binding_scores) 
+        self.x_null_index = np.argmax(self.x_null, axis=2)
+        self.predict_null()
+
+
     def set_x_null(self, x_null):
-        # x_null should be one-hot 
-        self.x_null = x_null
-        self.x_null_index = np.argmax(x_null, axis=2)
-
-
-    def set_null_model(self, seq_model, num_sim=1000):
-        factor = 2
-
-        # sequence length
-        L = seq_model.shape[0]
-
-        x_null = np.zeros((num_sim*factor, L, 4))
-        for n in range(num_sim*factor):
-
-            # generate uniform random number for each nucleotide in sequence
-            Z = np.random.uniform(0,1,L)
-
-            # calculate cumulative sum of the probabilities
-            cum_prob = seq_model.cumsum(axis=1)
-
-            # find bin that matches random number for each position
-            for l in range(L):
-                index=[j for j in range(4) if Z[l] < cum_prob[l,j]][0]
-                x_null[n,l,index] = 1
-
+        """set the null sequences"""
         self.x_null = x_null
         self.x_null_index = np.argmax(x_null, axis=2)
         self.predict_null()
-        #self.filter_null_model(low=10, high=90, num_sim=num_sim)
 
 
-    def filter_null_model(self, low=10, high=90, num_sim=1000):
-
+    def filter_null(self, low=10, high=90, num_sample=1000):
+        """ remove sequences that yield extremum predictions"""
         high = np.percentile(self.null_scores, high)
         low = np.percentile(self.null_scores, low)
         index = np.where((self.null_scores < high)&(self.null_scores > low))[0]
-        self.set_x_null(self.x_null[index][:num_sim])
+        self.set_x_null(self.x_null[index][:num_sample])
         self.predict_null()
 
                
     def predict_null(self, class_index=0):
-        self.null_scores = self.residualbind.predict(self.x_null)[:, class_index]
+        """perform GIA on null sequences"""
+        self.null_scores = self.model.predict(self.x_null)[:, class_index]
         self.mean_null_score = np.mean(self.null_scores)
 
 
     def embed_patterns(self, patterns):
+        """embed patterns in null sequences"""
         if not isinstance(patterns, list):
             patterns = [patterns]
 
@@ -318,6 +302,7 @@ class GlobalImportance():
     
 
     def set_hairpin_null(self, stem_left=7, stem_right=23, stem_size=9):
+        """create a hairpin for the null sequences"""
         one_hot = np.copy(self.x_null)
         stem_left_end = stem_left + stem_size
         stem_right_end = stem_right + stem_size
@@ -329,6 +314,7 @@ class GlobalImportance():
 
     
     def embed_pattern_hairpin(self, patterns, stem_left=7, stem_right=23, stem_size=9):
+        """embed pattern within a hairpin for the null sequences"""
         
         # set the null to be a stem-loop
         self.set_hairpin_null(stem_left=7, stem_right=23, stem_size=9)
@@ -347,19 +333,21 @@ class GlobalImportance():
         return  one_hot
 
 
-
     def embed_predict_effect(self, patterns, class_index=0):
+        """embed pattern in null sequences and get their predictions"""
         one_hot = self.embed_patterns(patterns)
-        return self.residualbind.predict(one_hot)[:, class_index] - self.null_scores
+        return self.model.predict(one_hot)[:, class_index] - self.null_scores
 
 
     def predict_effect(self, one_hot, class_index=0):
-        predictions = self.residualbind.predict(one_hot)[:, class_index]
+        """Measure effect size of sequences versus null sequences"""
+        predictions = self.model.predict(one_hot)[:, class_index]
         return predictions - self.null_scores
 
 
     def optimal_kmer(self, kmer_size=7, position=17, class_index=0):
-        
+        """GIA to find optimal k-mers"""
+
         # generate all kmers             
         kmers = ["".join(p) for p in itertools.product(list(self.alphabet), repeat=kmer_size)]
 
@@ -382,7 +370,8 @@ class GlobalImportance():
 
 
     def kmer_mutagenesis(self, kmer='UGCAUG', position=17, class_index=0):
-        
+        """GIA mutagenesis of a k-mer"""
+
         # get wt score
         wt_score = np.mean(self.embed_predict_effect((kmer, position), class_index))
 
@@ -409,6 +398,7 @@ class GlobalImportance():
 
 
     def positional_bias(self, motif='UGCAUG', positions=[2, 12, 23, 33], class_index=0):
+        """GIA to find positional bias"""
 
         # loop over positions and measure effect size of intervention
         all_scores = []
@@ -420,6 +410,7 @@ class GlobalImportance():
 
 
     def multiple_sites(self, motif='UGCAUG', positions=[17, 10, 25, 3], class_index=0):
+        """GIA to find relation with multiple binding sites"""
 
         # loop over positions and measure effect size of intervention
         all_scores = []
@@ -437,6 +428,7 @@ class GlobalImportance():
 
     def gc_bias(self, motif='UGCAUG', motif_position=17,
                 gc_motif='GCGCGC', gc_positions=[34, 2], class_index=0):
+        """GIA to find GC-bias"""
 
         all_scores = []
 
@@ -456,7 +448,95 @@ class GlobalImportance():
         return np.array(all_scores)
 
 
+#-------------------------------------------------------------------------------------
+# Null sequence models
+#-------------------------------------------------------------------------------------
 
+    
+def generate_null_sequence_set (null_model, base_sequence, num_sample=1000 , binding_scores=None):
+    if null_model == 'random':    return generate_shuffled_set(base_sequence, num_sample)
+    if null_model == 'profile':   return generate_profile_set(base_sequence, num_sample)
+    if null_model == 'dinuc':     return generate_dinucleotide_shuffled_set(base_sequence, num_sample)
+    if null_model == 'quartile1': return generate_quartile_set(base_sequence, num_sample, binding_scores, quartile=1)
+    if null_model == 'quartile2': return generate_quartile_set(base_sequence, num_sample, binding_scores, quartile=2)
+    if null_model == 'quartile3': return generate_quartile_set(base_sequence, num_sample, binding_scores, quartile=3)
+    if null_model == 'quartile4': return generate_quartile_set(base_sequence, num_sample, binding_scores, quartile=4)
+    else: print ('null_model name not recognized.')
+
+
+def generate_profile_set(base_sequence, num_sample):
+    # set null sequence model
+    seq_model = np.mean(np.squeeze(base_sequence), axis=0) 
+    seq_model /= np.sum(seq_model, axis=1, keepdims=True) 
+
+    # sequence length
+    L = seq_model.shape[0]
+
+    x_null = np.zeros((num_sample, L, 4))
+    for n in range(num_sample):
+
+        # generate uniform random number for each nucleotide in sequence
+        Z = np.random.uniform(0,1,L)
+
+        # calculate cumulative sum of the probabilities
+        cum_prob = seq_model.cumsum(axis=1)
+
+        # find bin that matches random number for each position
+        for l in range(L):
+            index = [j for j in range(4) if Z[l] < cum_prob[l,j]][0]
+            x_null[n,l,index] = 1    
+    return x_null 
+
+
+def generate_shuffled_set(base_sequence, num_sample): 
+    # take a random subset of base_sequence
+    shuffle = np.random.permutation(len(base_sequence))
+    x_null = base_sequence[shuffle[[:num_sample]]]
+
+    # shuffle nucleotides   
+    [np.random.shuffle(x) for x in x_null]
+    return x_null   
+
+
+def generate_dinucleotide_shuffled_set(base_sequence, num_sample):  
+
+    # take a random subset of base_sequence
+    shuffle = np.random.permutation(len(base_sequence))
+    x_null = base_sequence[shuffle[[:num_sample]]]
+    
+    # shuffle dinucleotides       
+    for j, seq in enumerate(x_null): 
+        x_null[j] = dinuc_shuffle(seq)
+    return x_null    
+
+
+def generate_quartile_set(base_sequence, num_sample, binding_scores, quartile): 
+    # sort sequences by the binding score (descending order)
+    sort_index = np.argsort(binding_scores[:,0])[::-1]
+    base_sequence = base_sequence[sort_index]
+    
+    # set quartile indices
+    L = len(base_sequence)
+    L0, L1, L2, L3, L4 = [0, int(L/4), int(L*2/4), int(L*3/4), L]
+    
+    # pick the quartile:
+    if (quartile==1): base_sequence = base_sequence[L0:L1]
+    if (quartile==2): base_sequence = base_sequence[L1:L2]
+    if (quartile==3): base_sequence = base_sequence[L2:L3]
+    if (quartile==4): base_sequence = base_sequence[L3:L4]
+    
+    # now shuffle the sequences
+    shuffle = np.random.permutation(len(base_sequence))
+   
+    # take a smaller sample of size num_sample
+    return base_sequence[shuffle[:num_sample]]
+    
+
+
+
+
+#-------------------------------------------------------------------------------------
+# Useful functions
 #-------------------------------------------------------------------------------------
 
 
@@ -469,4 +549,6 @@ def pearsonr_scores(y_true, y_pred, mask_value=None):
         else:
             corr.append(stats.pearsonr(y_true[:,i], y_pred[:,i])[0])
     return np.array(corr)
+
+
 

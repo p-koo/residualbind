@@ -6,7 +6,6 @@ import helper
 
 #---------------------------------------------------------------------------------------
 
-
 normalization = 'log_norm'   # 'log_norm' or 'clip_norm'
 ss_type = 'seq'                  # 'seq', 'pu', or 'struct'
 data_path = '../data/RNAcompete_2009/rnacompete2009.h5'
@@ -34,8 +33,9 @@ for rbp_name in rbp_names:
 
     # load residualbind model
     input_shape = list(train['inputs'].shape)[1:]
-    weights_path = os.path.join(save_path, rbp_name + '_weights.hdf5')    
-    model = ResidualBind(input_shape, weights_path)
+    num_class = 1
+    weights_path = os.path.join(save_path, experiment + '_weights.hdf5')    
+    resnet = ResidualBind(input_shape, num_class, weights_path)
 
     # fit model
     model.fit(train, valid, num_epochs=300, batch_size=100, patience=20, 
