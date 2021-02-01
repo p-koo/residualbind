@@ -241,7 +241,7 @@ class ResidualBind():
 
 
 class GlobalImportance():
-        """Class that performs GIA experiments."""
+    """Class that performs GIA experiments."""
     def __init__(self, model, alphabet='ACGU'):
         self.model = model
         self.alphabet = alphabet
