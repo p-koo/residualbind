@@ -491,7 +491,7 @@ def generate_profile_set(base_sequence, num_sample):
 def generate_shuffled_set(base_sequence, num_sample): 
     # take a random subset of base_sequence
     shuffle = np.random.permutation(len(base_sequence))
-    x_null = base_sequence[shuffle[[:num_sample]]]
+    x_null = base_sequence[shuffle[:num_sample]]
 
     # shuffle nucleotides   
     [np.random.shuffle(x) for x in x_null]
@@ -502,7 +502,7 @@ def generate_dinucleotide_shuffled_set(base_sequence, num_sample):
 
     # take a random subset of base_sequence
     shuffle = np.random.permutation(len(base_sequence))
-    x_null = base_sequence[shuffle[[:num_sample]]]
+    x_null = base_sequence[shuffle[:num_sample]]
     
     # shuffle dinucleotides       
     for j, seq in enumerate(x_null): 
